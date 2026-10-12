@@ -55,6 +55,28 @@ Response:
 - **Commands:** return every pending command for the agent until a report contains a `results` entry with the same `id`, then drop it. The agent de-duplicates by `id` (for 1 hour), so re-delivery is safe.
 - **Policy:** include it only when it changes. The agent persists it, validates it, and ignores it if `updates.allow_remote_policy` is false.
 
+## 3. Live progress: `POST /api/agent/v1/progress`
+
+Sent about once a second while an update run executes, whether started by an `updates.apply` command or the agent's own policy schedule. It's authenticated like reports.
+
+```json
+{
+  "run_id": "run_3f9a…", "command_id": "cmd_123", "kind": "updates.apply", "trigger": "command",
+  "started_at": "…", "phase": "installing", "total": 4,
+  "seq": 12, "lines": [ { "t": "…", "s": "stdout", "text": "Setting up openssl (3.0.13-0ubuntu3.4) ..." } ],
+  "installed": [ { "name": "openssl", "version": "3.0.13-0ubuntu3.4", "t": "…" } ],
+  "done": false
+}
+```
+
+- **`lines`:** the package manager's stdout/stderr plus `agent` lines summarising each step. Line *n* in a chunk has sequence number `seq + n`, so a re-sent chunk is idempotent. Store by `(run, seq)`.
+- **`phase`:** one of `preflight`, `refreshing`, `installing`, `verifying`, `rebooting`, `done`.
+- **`installed`:** packages finished since the previous chunk. They're parsed from apt (`Setting up …`), dnf/yum (`Upgrading : …`), apk (`(1/3) Upgrading …`) and pacman output.
+- **`command_id`:** empty for scheduled runs. The control plane then creates a job for the run itself.
+- **The final chunk:** has `done: true` with `status` (`success`, `failed` or `skipped`) and `error`.
+
+If the dashboard is unreachable, the agent keeps up to 5,000 unsent lines and retries. If it answers 404 (an older dashboard), the agent stops streaming; the command result still carries the output tail.
+
 ## Commands
 
 Unknown types, unknown argument fields, and actions disabled in the agent's `actions:` config are rejected with `ok: false`.
@@ -62,6 +84,7 @@ Unknown types, unknown argument fields, and actions disabled in the agent's `act
 | Type                                    | Args                                         | Local switch      |
 | --------------------------------------- | -------------------------------------------- | ----------------- |
 | `agent.refresh`                         | none                                         | none              |
+| `agent.update`                          | `{ "version": "0.3.0", "path": "/downloads/linux-dash-agent-linux-amd64", "sha256": "…" }` | `actions.agent_update` (needs systemd/OpenRC) |
 | `updates.check`                         | none                                         | `updates.enabled` |
 | `updates.apply`                         | `{ "packages"?: [..], "security_only"?: bool }` | `actions.updates` |
 | `host.reboot`                           | `{ "delay_minutes"?: int }` (min 1)          | `actions.reboot` (off by default) |
@@ -76,6 +99,20 @@ Result:
 ```
 
 There is no arbitrary shell execution, by design.
+
+### Self-update (`agent.update`)
+
+The agent:
+1. downloads `path` from the control plane and checks it against `sha256`;
+2. runs the new binary's `version` (which must equal `version`) and `validate -config`;
+3. keeps the current binary as `<binary>.previous`, renames the new one into place, and records a pending update;
+4. exits after the result has been reported, so the service manager starts the new version.
+
+The new version removes the backup after its first successful report and reports `agent.last_update.status = "confirmed"`. It rolls back to `.previous` (`status = "rolled_back"`) if it restarts more than 5 times without reporting, or fails 10 reports in a row.
+
+The control plane should treat the job as done only when `agent_version` equals the target version.
+
+Every report also carries `agent` (`AgentInfo`): the version, the report interval, the local `actions` allowlist, enabled `features`, the service manager, whether self-update is possible, and the last self-update outcome.
 
 ## Update orchestration
 

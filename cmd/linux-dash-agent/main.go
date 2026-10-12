@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -101,7 +102,12 @@ func main() {
 	if err != nil {
 		fatal(log, err)
 	}
+	a.ConfigPath = *cfgPath
 	if err := a.Run(ctx); err != nil && ctx.Err() == nil {
+		if errors.Is(err, agent.ErrRestart) {
+			log.Info("exiting for restart")
+			os.Exit(0) // systemd (Restart=always) / OpenRC start the new binary
+		}
 		fatal(log, err)
 	}
 	log.Info("agent stopped")

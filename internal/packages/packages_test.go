@@ -129,7 +129,7 @@ func TestAptApplyCommands(t *testing.T) {
 }
 
 func TestPacmanSelectiveUsesIgnore(t *testing.T) {
-	f := &execx.Fake{Responses: map[string]execx.Result{"pacman -Syu --noconfirm --ignore linux,docker": {}}}
+	f := &execx.Fake{Responses: map[string]execx.Result{"pacman -Syu --noconfirm --noprogressbar --ignore linux,docker": {}}}
 	p := &Pacman{r: f}
 	pending := []protocol.Package{{Name: "openssl"}, {Name: "linux"}, {Name: "docker"}}
 	if _, _, err := Apply(context.Background(), p, pending, UpgradeOptions{Packages: []string{"openssl"}}); err != nil {
@@ -144,5 +144,31 @@ func TestDetect(t *testing.T) {
 	}
 	if _, err := Detect(&execx.Fake{}); err != ErrNoManager {
 		t.Fatalf("want ErrNoManager, got %v", err)
+	}
+}
+
+func TestParseInstalled(t *testing.T) {
+	cases := []struct{ mgr, line, name, version string }{
+		{"apt", "Setting up openssl (3.0.13-0ubuntu3.4) ...", "openssl", "3.0.13-0ubuntu3.4"},
+		{"apt", "Setting up libc6:amd64 (2.39-0ubuntu8.3) ...", "libc6", "2.39-0ubuntu8.3"},
+		{"dnf", "  Upgrading        : openssl-libs-1:3.0.7-27.el9.x86_64        1/8 ", "openssl-libs", "1:3.0.7-27.el9"},
+		{"dnf", "[3/8] Upgrading curl-8.6.0-10.fc40.aarch64 100% |  12.3 MiB/s", "curl", "8.6.0-10.fc40"},
+		{"yum", "  Installing       : kernel-core-5.14.0-427.42.1.el9_4.x86_64     2/8", "kernel-core", "5.14.0-427.42.1.el9_4"},
+		{"apk", "(1/3) Upgrading busybox (1.36.1-r29 -> 1.36.1-r31)", "busybox", "1.36.1-r31"},
+		{"pacman", "(1/3) upgrading linux                       [######]", "linux", ""},
+	}
+	for _, c := range cases {
+		got, ok := ParseInstalled(c.mgr, c.line)
+		if !ok || got.Name != c.name || got.Version != c.version {
+			t.Errorf("%s %q: got %+v ok=%v", c.mgr, c.line, got, ok)
+		}
+	}
+	for _, line := range []string{"Unpacking openssl (3.0.13-0ubuntu3.4) over (3.0.13-0ubuntu3.3) ...", "  Cleanup          : openssl-libs-1:3.0.7-25.el9.x86_64   5/8", "Reading package lists..."} {
+		if _, ok := ParseInstalled("apt", line); ok {
+			t.Errorf("%q should not count as installed", line)
+		}
+		if _, ok := ParseInstalled("dnf", line); ok {
+			t.Errorf("%q should not count as installed (dnf)", line)
+		}
 	}
 }

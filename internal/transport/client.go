@@ -82,6 +82,44 @@ func (c *Client) Report(ctx context.Context, r *protocol.Report) (protocol.Repor
 	return resp, err
 }
 
+// Download fetches a file published by the control plane (e.g. an agent
+// release) into w, refusing anything larger than max bytes.
+func (c *Client) Download(ctx context.Context, path string, w io.Writer, max int64) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+path, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("User-Agent", c.ua)
+	hc := *c.http
+	hc.Timeout = 10 * time.Minute
+	resp, err := hc.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return 0, fmt.Errorf("GET %s: %s: %s", path, resp.Status, strings.TrimSpace(string(msg)))
+	}
+	n, err := io.Copy(w, io.LimitReader(resp.Body, max+1))
+	if err == nil && n > max {
+		err = fmt.Errorf("GET %s: file larger than %d bytes", path, max)
+	}
+	return n, err
+}
+
+// ErrNotSupported means the control plane predates this endpoint.
+var ErrNotSupported = errors.New("control plane does not support this endpoint")
+
+// Progress sends one chunk of a live job stream.
+func (c *Client) Progress(ctx context.Context, p *protocol.Progress) error {
+	err := c.post(ctx, protocol.PathProgress, p, nil, true)
+	if err != nil && strings.Contains(err.Error(), "404") {
+		return ErrNotSupported
+	}
+	return err
+}
+
 func (c *Client) post(ctx context.Context, path string, body, out any, auth bool) error {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 
 // fakePlane is a minimal control plane for exercising the full agent loop.
 type fakePlane struct {
+	progress []protocol.Progress
 	mu       sync.Mutex
 	enrolls  int
 	reports  []protocol.Report
@@ -50,6 +52,18 @@ func (f *fakePlane) handler(t *testing.T) http.Handler {
 		f.enrolls++
 		f.mu.Unlock()
 		json.NewEncoder(w).Encode(protocol.EnrollResponse{AgentID: "agt_1", Secret: "s3cret"})
+	})
+	mux.HandleFunc("POST "+protocol.PathProgress, func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer s3cret" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var p protocol.Progress
+		read(r, &p)
+		f.mu.Lock()
+		f.progress = append(f.progress, p)
+		f.mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("POST "+protocol.PathReport, func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Agent-ID") != "agt_1" || r.Header.Get("Authorization") != "Bearer s3cret" {
@@ -90,6 +104,7 @@ func TestAgentEndToEnd(t *testing.T) {
 			{ID: "c2", Type: protocol.CmdHostReboot}, // actions.reboot defaults to false
 			{ID: "c3", Type: "shell.exec", Args: json.RawMessage(`{"cmd":"id"}`)},
 			{ID: "c4", Type: protocol.CmdDockerRestart, Args: json.RawMessage(`{"id":"x","extra":1}`)},
+			{ID: "c5", Type: protocol.CmdUpdatesApply, Args: json.RawMessage(`{"security_only":true}`)},
 		},
 		policy: &protocol.Policy{Enabled: true, Scope: "all", IntervalHours: 12},
 	}
@@ -99,7 +114,7 @@ func TestAgentEndToEnd(t *testing.T) {
 	cfg := config.Default()
 	cfg.Server.URL, cfg.Server.EnrollToken, cfg.Server.AllowInsecureHTTP = srv.URL, "good-token", true
 	cfg.Intervals.Report = 2 * time.Second
-	cfg.Updates.Enabled = false
+	cfg.Updates.Enabled = true
 	cfg.Docker.Enabled = false
 	if err := cfg.Validate(); err != nil {
 		t.Fatal(err)
@@ -120,7 +135,7 @@ func TestAgentEndToEnd(t *testing.T) {
 	go func() { a.Run(ctx); close(done) }()
 
 	deadline := time.Now().Add(8 * time.Second)
-	for len(plane.results()) < 4 && time.Now().Before(deadline) {
+	for len(plane.results()) < 5 && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	cancel()
@@ -144,6 +159,26 @@ func TestAgentEndToEnd(t *testing.T) {
 	}
 	if r := byID["c4"]; r.OK {
 		t.Errorf("unknown args / missing docker must be refused: %+v", r)
+	}
+
+	// updates.apply streams live progress tagged with its command, ending with
+	// a final chunk (this test host has no package manager, so it fails).
+	plane.mu.Lock()
+	var final *protocol.Progress
+	lines := 0
+	for i := range plane.progress {
+		p := plane.progress[i]
+		if p.CommandID != "c5" || p.Trigger != "command" || p.RunID == "" {
+			t.Errorf("unexpected progress chunk %+v", p)
+		}
+		lines += len(p.Lines)
+		if p.Done {
+			final = &p
+		}
+	}
+	plane.mu.Unlock()
+	if final == nil || final.Status != "failed" || !strings.Contains(final.Error, "package manager") || lines == 0 {
+		t.Errorf("final progress = %+v (lines %d)", final, lines)
 	}
 
 	st := store.Get()

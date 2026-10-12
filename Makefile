@@ -16,7 +16,8 @@ release:
 			-o dist/linux-dash-agent-linux-$$arch ./cmd/linux-dash-agent || exit 1; \
 	done
 	@cp deploy/install.sh dist/
-	@cd dist && (sha256sum * 2>/dev/null || shasum -a 256 *) > SHA256SUMS
+	@echo "$(VERSION)" > dist/VERSION
+	@cd dist && (sha256sum linux-dash-agent-linux-* 2>/dev/null || shasum -a 256 linux-dash-agent-linux-*) > SHA256SUMS
 
 test:
 	go test -race ./...

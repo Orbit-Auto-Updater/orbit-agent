@@ -3,6 +3,7 @@ package execx
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -14,7 +15,7 @@ type Fake struct {
 	Calls     []string
 }
 
-func (f *Fake) Run(_ context.Context, c Cmd) (Result, error) {
+func (f *Fake) Run(ctx context.Context, c Cmd) (Result, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	line := c.String()
@@ -22,6 +23,13 @@ func (f *Fake) Run(_ context.Context, c Cmd) (Result, error) {
 	r, ok := f.Responses[line]
 	if !ok {
 		return Result{}, fmt.Errorf("fake: unexpected command %q", line)
+	}
+	if sink := lineSink(ctx); sink != nil {
+		for _, l := range strings.Split(string(r.Stdout), "\n") {
+			if l != "" {
+				sink("stdout", l)
+			}
+		}
 	}
 	return r, nil
 }

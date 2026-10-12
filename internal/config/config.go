@@ -76,6 +76,8 @@ type Config struct {
 		Docker  bool `yaml:"docker"`
 		PM2     bool `yaml:"pm2"`
 		Systemd bool `yaml:"systemd"`
+		// AgentUpdate lets the dashboard install a new agent version.
+		AgentUpdate bool `yaml:"agent_update"`
 	} `yaml:"actions"`
 }
 
@@ -100,6 +102,7 @@ func Default() *Config {
 	c.Actions.Docker = true
 	c.Actions.PM2 = true
 	c.Actions.Systemd = true
+	c.Actions.AgentUpdate = true
 	return c
 }
 

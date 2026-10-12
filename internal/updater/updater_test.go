@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,7 +95,7 @@ func newUpdater(t *testing.T, f *execx.Fake, freePct float64) *Updater {
 
 func TestApplySkipsWhenDiskLow(t *testing.T) {
 	u := newUpdater(t, &execx.Fake{Binaries: map[string]bool{"apk": true}}, 4)
-	run := u.Apply(context.Background(), "command", packages.UpgradeOptions{}, false)
+	run := u.Apply(context.Background(), "command", packages.UpgradeOptions{}, false, "")
 	if run.Status != "skipped" || u.Store.Get().LastUpdateRun == nil {
 		t.Fatalf("run = %+v", run)
 	}
@@ -107,7 +108,7 @@ func TestApplySecurityOnlyFlow(t *testing.T) {
 		"apk upgrade --no-progress": {Stdout: []byte("(1/1) Upgrading busybox")},
 	}}
 	u := newUpdater(t, f, 50)
-	run := u.Apply(context.Background(), "command", packages.UpgradeOptions{}, false)
+	run := u.Apply(context.Background(), "command", packages.UpgradeOptions{}, false, "")
 	if run.Status != "success" || len(run.Packages) != 1 || run.Packages[0] != "busybox" {
 		t.Fatalf("run = %+v", run)
 	}
@@ -148,5 +149,48 @@ func TestRemotePolicyOverridesLocal(t *testing.T) {
 	u.AllowRemote = true
 	if u.Policy().Scope != "all" {
 		t.Fatal("remote policy should apply")
+	}
+}
+
+type recorder struct {
+	phases []string
+	lines  []string
+	total  int
+	final  protocol.UpdateRun
+}
+
+func (r *recorder) Phase(p string)                { r.phases = append(r.phases, p) }
+func (r *recorder) Line(stream, text string)      { r.lines = append(r.lines, stream+": "+text) }
+func (r *recorder) Total(n int)                   { r.total = n }
+func (r *recorder) Finish(run protocol.UpdateRun) { r.final = run }
+
+func TestApplyStreamsProgress(t *testing.T) {
+	f := &execx.Fake{Binaries: map[string]bool{"apk": true}, Responses: map[string]execx.Result{
+		"apk update -q":             {Stdout: []byte("fetch https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/APKINDEX.tar.gz\n")},
+		"apk list -u":               {Stdout: []byte("busybox-1.36.1-r31 x86_64 {busybox} (GPL-2.0-only) [upgradable from: busybox-1.36.1-r29]\n")},
+		"apk upgrade --no-progress": {Stdout: []byte("(1/1) Upgrading busybox (1.36.1-r29 -> 1.36.1-r31)\nOK: 8 MiB in 15 packages\n")},
+	}}
+	u := newUpdater(t, f, 50)
+	rec := &recorder{}
+	var gotCmd, gotMgr string
+	u.NewReporter = func(trigger, commandID, manager string) Reporter {
+		gotCmd, gotMgr = commandID, manager
+		return rec
+	}
+	run := u.Apply(context.Background(), "command", packages.UpgradeOptions{}, false, "cmd_1")
+	if run.Status != "success" || gotCmd != "cmd_1" || gotMgr != "apk" {
+		t.Fatalf("run=%+v cmd=%q mgr=%q", run, gotCmd, gotMgr)
+	}
+	if strings.Join(rec.phases, ",") != "preflight,refreshing,installing,verifying,done" {
+		t.Fatalf("phases: %v", rec.phases)
+	}
+	if rec.total != 1 || rec.final.Status != "success" {
+		t.Fatalf("total=%d final=%+v", rec.total, rec.final)
+	}
+	joined := strings.Join(rec.lines, "\n")
+	for _, want := range []string{"stdout: (1/1) Upgrading busybox (1.36.1-r29 -> 1.36.1-r31)", "stdout: fetch https://", "agent: Installing 1 package(s): busybox"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("missing %q in\n%s", want, joined)
+		}
 	}
 }

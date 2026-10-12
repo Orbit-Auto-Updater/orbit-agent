@@ -69,3 +69,4 @@ actions:
   docker: true                         # docker.start / stop / restart
   pm2: true                            # pm2.start / stop / restart
   systemd: true                        # systemd.start / stop / restart (watched units)
+  agent_update: true                   # agent.update: install a new agent version from the dashboard

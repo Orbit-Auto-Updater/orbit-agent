@@ -571,6 +571,7 @@ actions:
   docker: true
   pm2: true
   systemd: true
+  agent_update: true
 
 systemd:
   watch: $(yaml_list "$WATCH")

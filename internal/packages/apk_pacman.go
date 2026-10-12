@@ -105,7 +105,7 @@ func (p *Pacman) List(ctx context.Context) ([]protocol.Package, error) {
 }
 
 func (p *Pacman) UpgradeAll(ctx context.Context, exclude []string) (string, error) {
-	args := []string{"-Syu", "--noconfirm"}
+	args := []string{"-Syu", "--noconfirm", "--noprogressbar"}
 	if len(exclude) > 0 {
 		args = append(args, "--ignore", strings.Join(exclude, ","))
 	}

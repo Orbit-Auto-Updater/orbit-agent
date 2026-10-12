@@ -21,6 +21,19 @@ type State struct {
 	RemotePolicy     *protocol.Policy    `json:"remote_policy,omitempty"`
 	LastUpdateWindow time.Time           `json:"last_update_window,omitzero"`
 	LastUpdateRun    *protocol.UpdateRun `json:"last_update_run,omitempty"`
+	// PendingUpdate is set while a self-update awaits confirmation.
+	PendingUpdate  *PendingUpdate              `json:"pending_update,omitempty"`
+	LastSelfUpdate *protocol.SelfUpdateOutcome `json:"last_self_update,omitempty"`
+}
+
+type PendingUpdate struct {
+	From           string    `json:"from"`
+	To             string    `json:"to"`
+	Backup         string    `json:"backup"` // path of the previous binary
+	Binary         string    `json:"binary"`
+	At             time.Time `json:"at"`
+	Failures       int       `json:"failures"`        // startups without reporting in
+	ReportFailures int       `json:"report_failures"` // failed reports by the new version
 }
 
 type Store struct {

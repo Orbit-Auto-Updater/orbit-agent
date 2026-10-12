@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,7 +18,26 @@ import (
 	"linux-dash-agent/internal/state"
 )
 
+// Reporter receives live progress of an update run (see agent.jobStream).
+type Reporter interface {
+	Phase(phase string)
+	// Line records an output line; stream is stdout, stderr or agent.
+	Line(stream, text string)
+	Total(n int)
+	Finish(run protocol.UpdateRun)
+}
+
+type nopReporter struct{}
+
+func (nopReporter) Phase(string)              {}
+func (nopReporter) Line(string, string)       {}
+func (nopReporter) Total(int)                 {}
+func (nopReporter) Finish(protocol.UpdateRun) {}
+
 type Updater struct {
+	// NewReporter, if set, creates a live progress stream for each run.
+	NewReporter func(trigger, commandID, manager string) Reporter
+
 	Manager     packages.Manager // nil if the host has none we support
 	Runner      execx.Runner
 	Store       *state.Store
@@ -111,54 +131,105 @@ func (u *Updater) check(ctx context.Context, refresh bool) ([]protocol.Package, 
 	return pkgs, err
 }
 
-// Apply upgrades packages. trigger is "schedule" or "command".
-func (u *Updater) Apply(ctx context.Context, trigger string, opts packages.UpgradeOptions, autoReboot bool) protocol.UpdateRun {
+// Apply upgrades packages. trigger is "schedule" or "command"; commandID is
+// the dashboard command that requested it (empty for scheduled runs).
+func (u *Updater) Apply(ctx context.Context, trigger string, opts packages.UpgradeOptions, autoReboot bool, commandID string) protocol.UpdateRun {
 	run := protocol.UpdateRun{Trigger: trigger, StartedAt: time.Now().UTC()}
+	var rep Reporter = nopReporter{}
+	if u.NewReporter != nil {
+		mgr := ""
+		if u.Manager != nil {
+			mgr = u.Manager.Name()
+		}
+		rep = u.NewReporter(trigger, commandID, mgr)
+	}
+	say := func(format string, a ...any) { rep.Line("agent", fmt.Sprintf(format, a...)) }
 	finish := func(status string, err error) protocol.UpdateRun {
 		run.Status, run.FinishedAt = status, time.Now().UTC()
 		if err != nil {
 			run.Error = err.Error()
+			say("%s: %s", status, run.Error)
+		} else {
+			say("Finished: %d package(s) in %s", len(run.Packages), run.FinishedAt.Sub(run.StartedAt).Round(time.Second))
 		}
 		r := run
 		_ = u.Store.Update(func(s *state.State) { s.LastUpdateRun = &r })
 		u.setStatus(func(s *protocol.UpdateStatus) { s.Running, s.LastRun = false, &r })
 		u.Log.Info("update run finished", "trigger", trigger, "status", status, "packages", len(run.Packages), "error", run.Error)
+		rep.Phase("done")
+		rep.Finish(r)
 		return run
 	}
 
 	if !u.op.TryLock() {
+		// Another run owns the status; report this one without touching it.
 		run.Status, run.Error, run.FinishedAt = "skipped", ErrBusy.Error(), time.Now().UTC()
+		say("skipped: %s", ErrBusy)
+		rep.Phase("done")
+		rep.Finish(run)
 		return run
 	}
 	defer u.op.Unlock()
 	u.setStatus(func(s *protocol.UpdateStatus) { s.Running = true })
+	// Every command run below streams its output to the reporter.
+	ctx = execx.WithLineSink(ctx, rep.Line)
 
 	if u.Manager == nil {
 		return finish("failed", packages.ErrNoManager)
 	}
+	rep.Phase("preflight")
+	say("Pre-flight checks (minimum free disk %.0f%%)", u.MinFreePct)
 	if err := u.preflight(); err != nil {
 		return finish("skipped", fmt.Errorf("pre-flight check failed: %w", err))
 	}
+	rep.Phase("refreshing")
+	say("Refreshing %s package lists", u.Manager.Name())
 	pending, err := u.check(ctx, true)
 	if err != nil {
 		return finish("failed", err)
 	}
+	targets, full, err := packages.Select(pending, opts)
+	if err != nil {
+		return finish("failed", err)
+	}
+	if full {
+		targets = nil
+		for _, p := range pending {
+			targets = append(targets, p.Name)
+		}
+	}
+	rep.Total(len(targets))
+	if len(targets) == 0 {
+		say("Nothing to install")
+	} else {
+		say("Installing %d package(s): %s", len(targets), strings.Join(targets, ", "))
+	}
+	rep.Phase("installing")
 	applied, out, err := packages.Apply(ctx, u.Manager, pending, opts)
 	run.Packages, run.OutputTail = applied, execx.Tail(out, 4000)
 	if err != nil {
+		rep.Phase("verifying")
 		u.check(ctx, false) // refresh status after a partial run
 		return finish("failed", err)
 	}
+	rep.Phase("verifying")
+	say("Checking remaining updates and whether a reboot is needed")
 	u.check(ctx, false)
 
 	if autoReboot && u.Status().RebootRequired {
 		if !u.AllowReboot {
 			u.Log.Warn("reboot required but actions.reboot is disabled in agent config")
+			say("A reboot is required, but reboots are disabled in the agent config")
 		} else if err := u.Reboot(ctx, 1); err != nil {
 			u.Log.Error("scheduling reboot failed", "err", err)
+			say("Scheduling a reboot failed: %v", err)
 		} else {
 			run.RebootScheduled = true
+			rep.Phase("rebooting")
+			say("Reboot scheduled in 1 minute")
 		}
+	} else if u.Status().RebootRequired {
+		say("A reboot is required to finish applying these updates")
 	}
 	return finish("success", nil)
 }
@@ -216,5 +287,5 @@ func (u *Updater) Tick(ctx context.Context, now time.Time) {
 		return
 	}
 	u.Log.Info("starting scheduled update", "scope", p.Scope, "window", windowStart)
-	u.Apply(ctx, "schedule", packages.UpgradeOptions{SecurityOnly: p.Scope == "security", Exclude: p.Exclude}, p.AutoReboot)
+	u.Apply(ctx, "schedule", packages.UpgradeOptions{SecurityOnly: p.Scope == "security", Exclude: p.Exclude}, p.AutoReboot, "")
 }

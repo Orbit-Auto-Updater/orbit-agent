@@ -36,6 +36,13 @@ func (a *Agent) dispatch(ctx context.Context, cmd protocol.Command) (string, err
 	kind, action, _ := strings.Cut(cmd.Type, ".")
 	switch kind {
 	case "agent":
+		if action == "update" {
+			var args protocol.AgentUpdateArgs
+			if err := decodeArgs(cmd.Args, &args); err != nil {
+				return "", err
+			}
+			return a.selfUpdate(ctx, cmd, args)
+		}
 		if action != "refresh" {
 			break
 		}
@@ -70,7 +77,7 @@ func (a *Agent) dispatch(ctx context.Context, cmd protocol.Command) (string, err
 			if err := decodeArgs(cmd.Args, &args); err != nil {
 				return "", err
 			}
-			run := a.updater.Apply(ctx, "command", packages.UpgradeOptions{Packages: args.Packages, SecurityOnly: args.SecurityOnly}, false)
+			run := a.updater.Apply(ctx, "command", packages.UpgradeOptions{Packages: args.Packages, SecurityOnly: args.SecurityOnly}, false, cmd.ID)
 			if run.Status != "success" {
 				if run.Error == "" {
 					run.Error = run.Status

@@ -31,6 +31,12 @@ const (
 )
 
 type Agent struct {
+	// ConfigPath is reported to the dashboard and used to check that a new
+	// version accepts the config before a self-update installs it.
+	ConfigPath string
+	// executable locates the running binary (overridden in tests).
+	executable func() (string, error)
+
 	cfg     *config.Config
 	log     *slog.Logger
 	version string
@@ -58,6 +64,7 @@ type Agent struct {
 	cursor        string
 	results       []protocol.CommandResult
 	seenCommands  map[string]time.Time
+	restartAfter  string // command whose result must be reported before restarting
 }
 
 func New(cfg *config.Config, store *state.Store, log *slog.Logger, version string) (*Agent, error) {
@@ -68,6 +75,7 @@ func New(cfg *config.Config, store *state.Store, log *slog.Logger, version strin
 		appsKick:     make(chan struct{}, 1),
 		wake:         make(chan struct{}, 1),
 		seenCommands: map[string]time.Time{},
+		executable:   os.Executable,
 		updatesDirty: true,
 		cursor:       store.Get().JournalCursor,
 	}
@@ -105,6 +113,7 @@ func New(cfg *config.Config, store *state.Store, log *slog.Logger, version strin
 		},
 	}
 
+	a.updater.NewReporter = a.newJobStream
 	a.host = a.metrics.HostInfo()
 	if mgr != nil {
 		a.host.PackageManager = mgr.Name()
@@ -128,6 +137,9 @@ func (a *Agent) Run(ctx context.Context) error {
 	if a.cfg.Server.InsecureSkipVerify {
 		a.log.Warn("TLS certificate verification is disabled (server.insecure_skip_verify)")
 	}
+	if err := a.checkPendingUpdate(); err != nil {
+		return err
+	}
 	if err := a.ensureEnrolled(ctx); err != nil {
 		return err
 	}
@@ -139,8 +151,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	if a.cfg.Updates.Enabled {
 		go a.updatesLoop(ctx)
 	}
-	a.reportLoop(ctx)
-	return nil
+	return a.reportLoop(ctx)
 }
 
 // Snapshot collects one full report without contacting the control plane.
@@ -187,13 +198,13 @@ func (a *Agent) ensureEnrolled(ctx context.Context) error {
 	}
 }
 
-func (a *Agent) reportLoop(ctx context.Context) {
+func (a *Agent) reportLoop(ctx context.Context) error {
 	interval := a.cfg.Intervals.Report
 	wait := time.Duration(0)
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case <-time.After(wait):
 		case <-a.wake:
 		}
@@ -203,7 +214,10 @@ func (a *Agent) reportLoop(ctx context.Context) {
 		if err != nil {
 			a.requeue(rep)
 			if ctx.Err() != nil {
-				return
+				return nil
+			}
+			if err := a.reportFailed(); err != nil {
+				return err
 			}
 			if wait < interval {
 				wait = interval
@@ -218,6 +232,11 @@ func (a *Agent) reportLoop(ctx context.Context) {
 			continue
 		}
 		a.commit(rep)
+		a.confirmUpdate()
+		if a.restartDue(rep) {
+			a.log.Info("self-update installed; exiting so the service manager starts the new version")
+			return ErrRestart
+		}
 		a.handleResponse(ctx, resp)
 		wait = jitter(interval)
 	}
@@ -225,7 +244,7 @@ func (a *Agent) reportLoop(ctx context.Context) {
 
 // buildReport snapshots everything that should go to the control plane now.
 func (a *Agent) buildReport(ctx context.Context) *protocol.Report {
-	rep := &protocol.Report{AgentVersion: a.version, SentAt: time.Now().UTC(), Host: a.host, Metrics: a.metrics.Collect()}
+	rep := &protocol.Report{AgentVersion: a.version, SentAt: time.Now().UTC(), Host: a.host, Metrics: a.metrics.Collect(), Agent: a.agentInfo()}
 
 	if a.journal != nil {
 		a.mu.Lock()

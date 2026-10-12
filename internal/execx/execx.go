@@ -8,9 +8,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -62,6 +64,13 @@ func (OS) Run(ctx context.Context, c Cmd) (Result, error) {
 	cmd.WaitDelay = 5 * time.Second
 	var stdout, stderr capped
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if sink := lineSink(ctx); sink != nil {
+		var mu sync.Mutex
+		ow, ew := &lineWriter{mu: &mu, stream: "stdout", f: sink}, &lineWriter{mu: &mu, stream: "stderr", f: sink}
+		cmd.Stdout, cmd.Stderr = io.MultiWriter(&stdout, ow), io.MultiWriter(&stderr, ew)
+		defer ow.flush()
+		defer ew.flush()
+	}
 
 	err := cmd.Run()
 	res := Result{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}

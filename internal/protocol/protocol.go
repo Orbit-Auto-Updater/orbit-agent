@@ -13,8 +13,9 @@ import (
 const Version = "1"
 
 const (
-	PathEnroll = "/api/agent/v1/enroll"
-	PathReport = "/api/agent/v1/report"
+	PathEnroll   = "/api/agent/v1/enroll"
+	PathReport   = "/api/agent/v1/report"
+	PathProgress = "/api/agent/v1/progress"
 )
 
 // ---------------------------------------------------------------- enrolment
@@ -41,6 +42,33 @@ type Report struct {
 	Updates      *UpdateStatus   `json:"updates,omitempty"`
 	Logs         []LogEntry      `json:"logs,omitempty"`
 	Results      []CommandResult `json:"results,omitempty"`
+	// Agent describes the agent's own configuration (what it allows and runs).
+	Agent *AgentInfo `json:"agent,omitempty"`
+}
+
+// AgentInfo is the agent's local configuration as it applies it, so the
+// dashboard can show it and avoid offering actions the agent will refuse.
+type AgentInfo struct {
+	Version               string          `json:"version"`
+	ReportIntervalSeconds int             `json:"report_interval_seconds"`
+	Actions               map[string]bool `json:"actions"`  // updates, reboot, docker, pm2, systemd, agent_update
+	Features              map[string]bool `json:"features"` // docker, pm2, systemd, journal, updates
+	PackageManager        string          `json:"package_manager,omitempty"`
+	// SelfUpdate is true when agent.update can work (allowed, and running
+	// under a service manager that restarts it).
+	SelfUpdate bool   `json:"self_update"`
+	Supervisor string `json:"supervisor,omitempty"` // systemd, openrc, or empty
+	ConfigPath string `json:"config_path,omitempty"`
+	// LastUpdate reports the outcome of the most recent self-update.
+	LastUpdate *SelfUpdateOutcome `json:"last_update,omitempty"`
+}
+
+type SelfUpdateOutcome struct {
+	From       string    `json:"from"`
+	To         string    `json:"to"`
+	Status     string    `json:"status"` // confirmed, rolled_back
+	Detail     string    `json:"detail,omitempty"`
+	FinishedAt time.Time `json:"finished_at"`
 }
 
 type ReportResponse struct {
@@ -239,6 +267,40 @@ type Window struct {
 	Timezone        string   `json:"timezone,omitempty" yaml:"timezone,omitempty"`
 }
 
+// ----------------------------------------------------------------- progress
+
+// Progress streams a long-running job (an update run) while it executes. The
+// agent POSTs one roughly every second; lines carry consecutive sequence
+// numbers starting at Seq, so re-sent chunks are idempotent.
+type Progress struct {
+	RunID     string    `json:"run_id"`
+	CommandID string    `json:"command_id,omitempty"` // empty for scheduled runs
+	Kind      string    `json:"kind"`                 // "updates.apply"
+	Trigger   string    `json:"trigger"`              // "command" or "schedule"
+	StartedAt time.Time `json:"started_at"`
+	Phase     string    `json:"phase,omitempty"` // preflight, refreshing, installing, verifying, rebooting, done
+	Total     int       `json:"total,omitempty"` // packages expected
+	Seq       int       `json:"seq"`
+	Lines     []LogLine `json:"lines,omitempty"`
+	// Installed lists packages completed since the previous chunk.
+	Installed []InstalledPackage `json:"installed,omitempty"`
+	Done      bool               `json:"done,omitempty"`
+	Status    string             `json:"status,omitempty"` // success, failed, skipped (when Done)
+	Error     string             `json:"error,omitempty"`
+}
+
+type LogLine struct {
+	Time   time.Time `json:"t"`
+	Stream string    `json:"s"` // stdout, stderr, agent
+	Text   string    `json:"text"`
+}
+
+type InstalledPackage struct {
+	Name    string    `json:"name"`
+	Version string    `json:"version,omitempty"`
+	Time    time.Time `json:"t"`
+}
+
 // ----------------------------------------------------------------- commands
 
 // Command types. Anything else is rejected by the agent.
@@ -256,6 +318,7 @@ const (
 	CmdSystemdStop    = "systemd.stop"
 	CmdSystemdRestart = "systemd.restart"
 	CmdAgentRefresh   = "agent.refresh"
+	CmdAgentUpdate    = "agent.update"
 )
 
 type Command struct {
@@ -293,6 +356,13 @@ type ContainerArgs struct {
 type PM2Args struct {
 	User string `json:"user,omitempty"`
 	Name string `json:"name"`
+}
+
+// AgentUpdateArgs points the agent at a new release served by the dashboard.
+type AgentUpdateArgs struct {
+	Version string `json:"version"`
+	Path    string `json:"path"`   // e.g. /downloads/linux-dash-agent-linux-amd64
+	SHA256  string `json:"sha256"` // of that file
 }
 
 type UnitArgs struct {
