@@ -131,4 +131,4 @@ Each agent runs its own policy window, so updates still happen if the dashboard 
 | Applications                 | `apps.docker`, `apps.pm2`, `apps.systemd`, and the `docker.*` / `pm2.*` / `systemd.*` commands |
 | Updates                      | `updates`, `updates.last_run`, `policy`, `updates.apply`        |
 | Alerts & logs                | `logs`, plus threshold rules evaluated on the server            |
-| Settings → Agent enrolment   | issues enrolment tokens; serves `install.sh` and `/downloads/linux-dash-agent-linux-<arch>` |
+| Agents page                  | issues enrolment tokens; serves `install.sh` and `/downloads/linux-dash-agent-linux-<arch>` |

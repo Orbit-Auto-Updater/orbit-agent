@@ -50,7 +50,7 @@ Usage: install.sh [options]
 Connection
   --server ADDR          Dashboard address: IP, hostname or URL (e.g. 10.0.0.5:3000,
                          dash.example.com, https://dash.example.com)
-  --token TOKEN          Enrolment token from Settings → Agent enrolment
+  --token TOKEN          Enrolment token from the Agents page
   --ca-file PATH         CA certificate that signed the dashboard's TLS certificate
   --insecure-tls         Don't verify the dashboard's TLS certificate (not recommended)
   --allow-http           Permit an unencrypted http:// dashboard address
@@ -433,8 +433,8 @@ if [ "$KEEP_CONFIG" -eq 0 ]; then
 
 	while :; do
 		if [ -z "$TOKEN" ]; then
-			[ "$INTERACTIVE" -eq 1 ] || die "--token is required (Settings → Agent enrolment in the dashboard)"
-			ask_secret TOKEN "Enrolment token (from Settings → Agent enrolment; input hidden):"
+			[ "$INTERACTIVE" -eq 1 ] || die "--token is required (the Agents page in the dashboard)"
+			ask_secret TOKEN "Enrolment token (from the Agents page; input hidden):"
 		fi
 		if matches "$TOKEN" "$TOKEN_RE"; then break; fi
 		[ "$INTERACTIVE" -eq 1 ] || die "invalid --token"

@@ -5,7 +5,7 @@
 
 server:
   url: https://dash.example.com        # required; https unless allow_insecure_http
-  enroll_token: ""                     # one-time token from Settings → Agent enrolment
+  enroll_token: ""                     # one-time token from the dashboard's Agents page
   ca_file: ""                          # PEM bundle for a private CA
   insecure_skip_verify: false          # never in production
   allow_insecure_http: false           # local development with cmd/devserver only
