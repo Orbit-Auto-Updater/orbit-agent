@@ -1,0 +1,6 @@
+# Keep the agent build context small.
+.git
+bin/
+dist/
+.state/
+dev.yaml
