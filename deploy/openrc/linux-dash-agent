@@ -1,0 +1,22 @@
+#!/sbin/openrc-run
+# OpenRC service for Alpine Linux.
+
+name="linux-dash-agent"
+description="Linux Dash agent"
+command="/usr/local/bin/linux-dash-agent"
+command_args="run -config /etc/linux-dash-agent/config.yaml"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/linux-dash-agent.log"
+error_log="/var/log/linux-dash-agent.log"
+supervisor=supervise-daemon
+respawn_delay=5
+
+depend() {
+	need net
+	after firewall
+}
+
+start_pre() {
+	checkpath --directory --mode 0700 /var/lib/linux-dash-agent
+}

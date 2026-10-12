@@ -1,0 +1,71 @@
+# Linux Dash agent — full configuration reference.
+# Default location: /etc/linux-dash-agent/config.yaml (keep it mode 0600).
+# Every key is optional except server.url (and server.enroll_token for the
+# first start). Values shown are the defaults unless noted.
+
+server:
+  url: https://dash.example.com        # required; https unless allow_insecure_http
+  enroll_token: ""                     # one-time token from Settings → Agent enrolment
+  ca_file: ""                          # PEM bundle for a private CA
+  insecure_skip_verify: false          # never in production
+  allow_insecure_http: false           # local development with cmd/devserver only
+
+state_dir: /var/lib/linux-dash-agent   # credentials + progress markers (0700)
+log_level: info                        # debug, info, warn, error
+
+intervals:
+  report: 10s                          # metrics + command poll (min 2s)
+  apps: 30s                            # Docker / PM2 / systemd collection
+  update_check: 6h                     # package metadata refresh (min 10m)
+
+metrics:
+  exclude_interfaces: [lo, "veth*", docker0, "br-*", "virbr*", "cni*", "flannel*", "cali*"]
+  exclude_mounts: ["/snap/*", "/var/lib/docker/*", "/var/lib/containers/*"]
+
+docker:
+  enabled: true                        # skipped automatically if the socket is missing
+  socket: /var/run/docker.sock
+
+pm2:
+  enabled: false
+  instances:                           # one entry per PM2 daemon (per Unix user)
+    - user: deploy
+      binary: /home/deploy/.nvm/versions/node/v20.18.0/bin/pm2   # default: "pm2" on PATH
+      home: ""                         # PM2_HOME if non-standard
+
+systemd:
+  enabled: true
+  watch:                               # always reported; failed units are reported regardless
+    - nginx.service
+    - postgresql.service
+  control_any: false                   # allow start/stop/restart of units not in watch
+
+journal:
+  enabled: true
+  priority: err                        # journalctl -p: emerg, alert, crit, err, warning
+  max_entries: 200                     # per report
+
+updates:
+  enabled: true
+  allow_remote_policy: true            # let the dashboard replace the policy below
+  min_free_disk_percent: 10            # pre-flight: skip upgrades if /, /var or /boot is fuller
+  policy:
+    enabled: false
+    scope: security                    # security | all
+    window:                            # run at most once per window…
+      days: [sun]                      # empty = every day
+      start: "02:00"
+      duration_minutes: 120
+      timezone: UTC
+    # interval_hours: 6                # …or every N hours (when no window is set)
+    auto_reboot: false                 # also requires actions.reboot
+    exclude: []                        # package names never upgraded automatically
+
+# Local allowlist for remote commands. The dashboard can never do more on this
+# host than what is enabled here.
+actions:
+  updates: true                        # updates.apply
+  reboot: false                        # host.reboot and policy auto_reboot
+  docker: true                         # docker.start / stop / restart
+  pm2: true                            # pm2.start / stop / restart
+  systemd: true                        # systemd.start / stop / restart (watched units)
