@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"linux-dash-agent/internal/execx"
-	"linux-dash-agent/internal/packages"
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/execx"
+	"orbit-agent/internal/packages"
+	"orbit-agent/internal/protocol"
 )
 
 var errDisabled = errors.New("action disabled in agent config")

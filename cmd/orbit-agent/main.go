@@ -1,5 +1,5 @@
-// Command linux-dash-agent runs on each Linux host, reports metrics, apps,
-// errors and pending updates to the Linux Dash control plane, and executes
+// Command orbit-agent runs on each Linux host, reports metrics, apps,
+// errors and pending updates to the Orbit control plane, and executes
 // allowlisted commands it receives back.
 package main
 
@@ -16,22 +16,22 @@ import (
 	"syscall"
 	_ "time/tzdata" // maintenance-window timezones work on hosts without zoneinfo
 
-	"linux-dash-agent/internal/agent"
-	"linux-dash-agent/internal/config"
-	"linux-dash-agent/internal/state"
+	"orbit-agent/internal/agent"
+	"orbit-agent/internal/config"
+	"orbit-agent/internal/state"
 )
 
 // version is set at build time with -ldflags "-X main.version=…".
 var version = "dev"
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `linux-dash-agent %s
+	fmt.Fprintf(os.Stderr, `orbit-agent %s
 
 Usage:
-  linux-dash-agent run    [-config PATH]            run the agent (default)
-  linux-dash-agent check  [-config PATH] [-updates] collect once and print the report as JSON
-  linux-dash-agent validate [-config PATH]          check the config file and exit
-  linux-dash-agent version
+  orbit-agent run    [-config PATH]            run the agent (default)
+  orbit-agent check  [-config PATH] [-updates] collect once and print the report as JSON
+  orbit-agent validate [-config PATH]          check the config file and exit
+  orbit-agent version
 
 Default config: %s
 `, version, config.DefaultPath)
@@ -75,7 +75,7 @@ func main() {
 	defer stop()
 
 	if cmd == "check" {
-		dir, err := os.MkdirTemp("", "linux-dash-agent-check")
+		dir, err := os.MkdirTemp("", "orbit-agent-check")
 		if err != nil {
 			fatal(log, err)
 		}

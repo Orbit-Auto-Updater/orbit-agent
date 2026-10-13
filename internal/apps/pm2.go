@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"linux-dash-agent/internal/execx"
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/execx"
+	"orbit-agent/internal/protocol"
 )
 
 // PM2Instance is one PM2 daemon, identified by the Unix user that owns it.

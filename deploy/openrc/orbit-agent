@@ -1,14 +1,14 @@
 #!/sbin/openrc-run
 # OpenRC service for Alpine Linux.
 
-name="linux-dash-agent"
-description="Linux Dash agent"
-command="/usr/local/bin/linux-dash-agent"
-command_args="run -config /etc/linux-dash-agent/config.yaml"
+name="orbit-agent"
+description="Orbit agent"
+command="/usr/local/bin/orbit-agent"
+command_args="run -config /etc/orbit-agent/config.yaml"
 command_background=true
 pidfile="/run/${RC_SVCNAME}.pid"
-output_log="/var/log/linux-dash-agent.log"
-error_log="/var/log/linux-dash-agent.log"
+output_log="/var/log/orbit-agent.log"
+error_log="/var/log/orbit-agent.log"
 supervisor=supervise-daemon
 respawn_delay=5
 
@@ -18,5 +18,5 @@ depend() {
 }
 
 start_pre() {
-	checkpath --directory --mode 0700 /var/lib/linux-dash-agent
+	checkpath --directory --mode 0700 /var/lib/orbit-agent
 }

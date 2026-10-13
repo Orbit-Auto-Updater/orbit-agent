@@ -1,4 +1,4 @@
-module linux-dash-agent
+module orbit-agent
 
 go 1.25
 

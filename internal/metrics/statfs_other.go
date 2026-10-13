@@ -5,7 +5,7 @@ package metrics
 import (
 	"errors"
 
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/protocol"
 )
 
 // The agent only targets Linux; this stub lets the package build and its

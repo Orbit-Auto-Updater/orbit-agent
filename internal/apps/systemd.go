@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"linux-dash-agent/internal/execx"
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/execx"
+	"orbit-agent/internal/protocol"
 )
 
 // Systemd reports watched units plus any failed unit on the host.

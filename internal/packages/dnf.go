@@ -5,8 +5,8 @@ import (
 	"context"
 	"strings"
 
-	"linux-dash-agent/internal/execx"
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/execx"
+	"orbit-agent/internal/protocol"
 )
 
 // DNF supports Fedora, RHEL, Rocky, Alma and CentOS (dnf or legacy yum).

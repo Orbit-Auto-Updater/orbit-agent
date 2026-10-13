@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"linux-dash-agent/internal/execx"
+	"orbit-agent/internal/execx"
 )
 
 const sample = `{"__CURSOR":"s=abc;i=1","__REALTIME_TIMESTAMP":"1728640933000000","PRIORITY":"3","_SYSTEMD_UNIT":"docker.service","MESSAGE":"container api-gateway exited with code 137"}

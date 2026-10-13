@@ -1,5 +1,5 @@
 // Package protocol defines the JSON messages exchanged between the agent and
-// the Linux Dash control plane. The agent always initiates: it enrolls once,
+// the Orbit control plane. The agent always initiates: it enrolls once,
 // then POSTs a Report on every interval and receives queued Commands and the
 // current update Policy in the response. See docs/PROTOCOL.md.
 package protocol
@@ -361,7 +361,7 @@ type PM2Args struct {
 // AgentUpdateArgs points the agent at a new release served by the dashboard.
 type AgentUpdateArgs struct {
 	Version string `json:"version"`
-	Path    string `json:"path"`   // e.g. /downloads/linux-dash-agent-linux-amd64
+	Path    string `json:"path"`   // e.g. /downloads/orbit-agent-linux-amd64
 	SHA256  string `json:"sha256"` // of that file
 }
 

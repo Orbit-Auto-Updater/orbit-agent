@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"linux-dash-agent/internal/config"
-	"linux-dash-agent/internal/protocol"
-	"linux-dash-agent/internal/state"
+	"orbit-agent/internal/config"
+	"orbit-agent/internal/protocol"
+	"orbit-agent/internal/state"
 )
 
 // fakePlane is a minimal control plane for exercising the full agent loop.

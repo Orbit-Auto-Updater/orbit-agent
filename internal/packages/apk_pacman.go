@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"linux-dash-agent/internal/execx"
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/execx"
+	"orbit-agent/internal/protocol"
 )
 
 // ------------------------------------------------------------------ Alpine

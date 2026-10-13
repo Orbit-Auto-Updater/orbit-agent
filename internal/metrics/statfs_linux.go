@@ -5,7 +5,7 @@ package metrics
 import (
 	"syscall"
 
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/protocol"
 )
 
 func statDisk(m Mount) (protocol.Disk, error) {

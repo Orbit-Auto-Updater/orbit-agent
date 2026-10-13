@@ -1,18 +1,18 @@
 [Unit]
-Description=Linux Dash agent
+Description=Orbit agent
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/linux-dash-agent run -config /etc/linux-dash-agent/config.yaml
+ExecStart=/usr/local/bin/orbit-agent run -config /etc/orbit-agent/config.yaml
 Restart=always
 RestartSec=5
 # Upgrades run as child processes. If the agent restarts mid-upgrade, let
 # apt/dnf finish instead of killing them and leaving dpkg half-configured.
 KillMode=process
 TimeoutStopSec=30
-StateDirectory=linux-dash-agent
+StateDirectory=orbit-agent
 StateDirectoryMode=0700
 PrivateTmp=true
 

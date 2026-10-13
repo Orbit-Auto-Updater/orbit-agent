@@ -10,11 +10,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"linux-dash-agent/internal/apps"
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/apps"
+	"orbit-agent/internal/protocol"
 )
 
-const DefaultPath = "/etc/linux-dash-agent/config.yaml"
+const DefaultPath = "/etc/orbit-agent/config.yaml"
 
 type Config struct {
 	Server struct {
@@ -82,7 +82,7 @@ type Config struct {
 }
 
 func Default() *Config {
-	c := &Config{StateDir: "/var/lib/linux-dash-agent", LogLevel: "info"}
+	c := &Config{StateDir: "/var/lib/orbit-agent", LogLevel: "info"}
 	c.Intervals.Report = 10 * time.Second
 	c.Intervals.Apps = 30 * time.Second
 	c.Intervals.UpdateCheck = 6 * time.Hour

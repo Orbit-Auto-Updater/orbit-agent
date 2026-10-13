@@ -11,16 +11,16 @@ import (
 	"sync"
 	"time"
 
-	"linux-dash-agent/internal/apps"
-	"linux-dash-agent/internal/config"
-	"linux-dash-agent/internal/execx"
-	"linux-dash-agent/internal/journal"
-	"linux-dash-agent/internal/metrics"
-	"linux-dash-agent/internal/packages"
-	"linux-dash-agent/internal/protocol"
-	"linux-dash-agent/internal/state"
-	"linux-dash-agent/internal/transport"
-	"linux-dash-agent/internal/updater"
+	"orbit-agent/internal/apps"
+	"orbit-agent/internal/config"
+	"orbit-agent/internal/execx"
+	"orbit-agent/internal/journal"
+	"orbit-agent/internal/metrics"
+	"orbit-agent/internal/packages"
+	"orbit-agent/internal/protocol"
+	"orbit-agent/internal/state"
+	"orbit-agent/internal/transport"
+	"orbit-agent/internal/updater"
 )
 
 const (
@@ -121,7 +121,7 @@ func New(cfg *config.Config, store *state.Store, log *slog.Logger, version strin
 
 	client, err := transport.New(transport.Options{
 		BaseURL: cfg.Server.URL, CAFile: cfg.Server.CAFile,
-		InsecureSkipVerify: cfg.Server.InsecureSkipVerify, UserAgent: "linux-dash-agent/" + version,
+		InsecureSkipVerify: cfg.Server.InsecureSkipVerify, UserAgent: "orbit-agent/" + version,
 	})
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 // Snapshot collects one full report without contacting the control plane.
-// Used by `linux-dash-agent check` to verify collection on a host.
+// Used by `orbit-agent check` to verify collection on a host.
 func (a *Agent) Snapshot(ctx context.Context, withUpdates bool) *protocol.Report {
 	a.metrics.Collect()
 	time.Sleep(time.Second) // give CPU and network rates a sampling window

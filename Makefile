@@ -5,7 +5,7 @@ ARCHES  := amd64 arm64 arm 386
 .PHONY: build release test vet devserver clean
 
 build:
-	go build -trimpath -ldflags "$(LDFLAGS)" -o bin/linux-dash-agent ./cmd/linux-dash-agent
+	go build -trimpath -ldflags "$(LDFLAGS)" -o bin/orbit-agent ./cmd/orbit-agent
 
 # Static Linux binaries for every supported architecture, plus checksums.
 release:
@@ -13,11 +13,11 @@ release:
 	@for arch in $(ARCHES); do \
 		echo "building linux/$$arch"; \
 		CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -trimpath -ldflags "$(LDFLAGS)" \
-			-o dist/linux-dash-agent-linux-$$arch ./cmd/linux-dash-agent || exit 1; \
+			-o dist/orbit-agent-linux-$$arch ./cmd/orbit-agent || exit 1; \
 	done
 	@cp deploy/install.sh dist/
 	@echo "$(VERSION)" > dist/VERSION
-	@cd dist && (sha256sum linux-dash-agent-linux-* 2>/dev/null || shasum -a 256 linux-dash-agent-linux-*) > SHA256SUMS
+	@cd dist && (sha256sum orbit-agent-linux-* 2>/dev/null || shasum -a 256 orbit-agent-linux-*) > SHA256SUMS
 
 test:
 	go test -race ./...

@@ -1,5 +1,5 @@
-# Linux Dash agent — full configuration reference.
-# Default location: /etc/linux-dash-agent/config.yaml (keep it mode 0600).
+# Orbit agent — full configuration reference.
+# Default location: /etc/orbit-agent/config.yaml (keep it mode 0600).
 # Every key is optional except server.url (and server.enroll_token for the
 # first start). Values shown are the defaults unless noted.
 
@@ -10,7 +10,7 @@ server:
   insecure_skip_verify: false          # never in production
   allow_insecure_http: false           # local development with cmd/devserver only
 
-state_dir: /var/lib/linux-dash-agent   # credentials + progress markers (0700)
+state_dir: /var/lib/orbit-agent   # credentials + progress markers (0700)
 log_level: info                        # debug, info, warn, error
 
 intervals:

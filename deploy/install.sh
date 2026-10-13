@@ -1,5 +1,5 @@
 #!/bin/sh
-# Linux Dash agent installer.
+# Orbit agent installer.
 #
 # Interactive (asks for the dashboard address, token and options):
 #   curl -q -fsSL https://dash.example.com/install.sh | sudo sh
@@ -14,13 +14,13 @@
 # Run with --help for all options.
 set -eu
 
-BIN_PATH=/usr/local/bin/linux-dash-agent
-CONF_DIR=/etc/linux-dash-agent
+BIN_PATH=/usr/local/bin/orbit-agent
+CONF_DIR=/etc/orbit-agent
 CONF_FILE=$CONF_DIR/config.yaml
 
 # Answers. "" means "not given yet"; flags fill these in and skip the prompt.
-SERVER=${LINUX_DASH_SERVER:-}
-TOKEN=${LINUX_DASH_TOKEN:-}
+SERVER=${ORBIT_SERVER:-}
+TOKEN=${ORBIT_TOKEN:-}
 CA_FILE=""
 INSECURE_TLS=""
 ALLOW_HTTP=""
@@ -43,7 +43,7 @@ KEEP_CONFIG=0
 
 usage() {
 	cat <<'EOF'
-Linux Dash agent installer
+Orbit agent installer
 
 Usage: install.sh [options]
 
@@ -337,7 +337,7 @@ fi
 [ -n "$ARCH" ] || ARCH=amd64
 
 say ""
-say "${B}Linux Dash agent installer${N}"
+say "${B}Orbit agent installer${N}"
 [ "$DRY_RUN" -eq 1 ] && say "${D}Dry run: nothing will be installed or changed.${N}"
 if [ "$INTERACTIVE" -eq 0 ] && [ "$ASSUME_YES" -eq 0 ]; then
 	say "${D}No terminal available; continuing with flags and defaults.${N}"
@@ -553,9 +553,9 @@ render_config() {
 	_pm2_enabled=false; [ -n "$PM2_USERS" ] && _pm2_enabled=true
 
 	cat <<EOF
-# Linux Dash agent configuration, written by install.sh.
+# Orbit agent configuration, written by install.sh.
 # Full reference: config.example.yaml. Validate changes with:
-#   linux-dash-agent validate && systemctl restart linux-dash-agent
+#   orbit-agent validate && systemctl restart orbit-agent
 
 server:
   url: "$SERVER"
@@ -643,12 +643,12 @@ fi
 section "Installing"
 # Stage next to the destination: /tmp may be mounted noexec, and mv is atomic.
 mkdir -p "${BIN_PATH%/*}"
-TMP=$(mktemp "${BIN_PATH%/*}/.linux-dash-agent.XXXXXX")
+TMP=$(mktemp "${BIN_PATH%/*}/.orbit-agent.XXXXXX")
 
 SCRIPT_DIR=""
 case "$0" in */*) [ -f "$0" ] && SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd) ;; esac
-if [ -z "$BINARY" ] && [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/linux-dash-agent-linux-$ARCH" ]; then
-	BINARY="$SCRIPT_DIR/linux-dash-agent-linux-$ARCH"
+if [ -z "$BINARY" ] && [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/orbit-agent-linux-$ARCH" ]; then
+	BINARY="$SCRIPT_DIR/orbit-agent-linux-$ARCH"
 	info "Using $BINARY"
 fi
 
@@ -672,14 +672,14 @@ else
 	if [ -z "$DOWNLOAD_URL" ]; then
 		_base=$SERVER
 		[ "$KEEP_CONFIG" -eq 1 ] && _base=$(sed -n 's/^  url: *"\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' "$CONF_FILE" | head -n 1)
-		DOWNLOAD_URL="$_base/downloads/linux-dash-agent-linux-$ARCH"
+		DOWNLOAD_URL="$_base/downloads/orbit-agent-linux-$ARCH"
 	fi
 	info "Downloading $DOWNLOAD_URL"
 	if ! fetch "$DOWNLOAD_URL"; then
 		warn "Download failed."
 		[ "$INTERACTIVE" -eq 1 ] || die "couldn't download the agent; pass --binary PATH"
 		while :; do
-			ask BINARY "Path to a linux-dash-agent-linux-$ARCH binary on this server:"
+			ask BINARY "Path to a orbit-agent-linux-$ARCH binary on this server:"
 			[ -f "$BINARY" ] && break
 			say "  File not found: $BINARY"
 		done
@@ -712,20 +712,20 @@ fi
 # ------------------------------------------------------------------ service
 
 if has_systemd; then
-	cat > /etc/systemd/system/linux-dash-agent.service <<'EOF'
+	cat > /etc/systemd/system/orbit-agent.service <<'EOF'
 [Unit]
-Description=Linux Dash agent
+Description=Orbit agent
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/linux-dash-agent run -config /etc/linux-dash-agent/config.yaml
+ExecStart=/usr/local/bin/orbit-agent run -config /etc/orbit-agent/config.yaml
 Restart=always
 RestartSec=5
 KillMode=process
 TimeoutStopSec=30
-StateDirectory=linux-dash-agent
+StateDirectory=orbit-agent
 StateDirectoryMode=0700
 PrivateTmp=true
 
@@ -733,37 +733,37 @@ PrivateTmp=true
 WantedBy=multi-user.target
 EOF
 	systemctl daemon-reload
-	systemctl enable linux-dash-agent >/dev/null 2>&1
-	systemctl restart linux-dash-agent
+	systemctl enable orbit-agent >/dev/null 2>&1
+	systemctl restart orbit-agent
 	sleep 2
-	if systemctl is-active --quiet linux-dash-agent; then
+	if systemctl is-active --quiet orbit-agent; then
 		ok "Service running"
 	else
 		warn "Service didn't stay up. Recent logs:"
-		journalctl -u linux-dash-agent -n 20 --no-pager >&2 || true
+		journalctl -u orbit-agent -n 20 --no-pager >&2 || true
 		exit 1
 	fi
-	LOGS="journalctl -u linux-dash-agent -f"
+	LOGS="journalctl -u orbit-agent -f"
 elif command -v rc-service >/dev/null 2>&1; then
-	cat > /etc/init.d/linux-dash-agent <<'EOF'
+	cat > /etc/init.d/orbit-agent <<'EOF'
 #!/sbin/openrc-run
-name="linux-dash-agent"
-command="/usr/local/bin/linux-dash-agent"
-command_args="run -config /etc/linux-dash-agent/config.yaml"
+name="orbit-agent"
+command="/usr/local/bin/orbit-agent"
+command_args="run -config /etc/orbit-agent/config.yaml"
 command_background=true
 pidfile="/run/${RC_SVCNAME}.pid"
-output_log="/var/log/linux-dash-agent.log"
-error_log="/var/log/linux-dash-agent.log"
+output_log="/var/log/orbit-agent.log"
+error_log="/var/log/orbit-agent.log"
 supervisor=supervise-daemon
 respawn_delay=5
 depend() { need net; }
-start_pre() { checkpath --directory --mode 0700 /var/lib/linux-dash-agent; }
+start_pre() { checkpath --directory --mode 0700 /var/lib/orbit-agent; }
 EOF
-	chmod 0755 /etc/init.d/linux-dash-agent
-	rc-update add linux-dash-agent default >/dev/null
-	rc-service linux-dash-agent restart >/dev/null
+	chmod 0755 /etc/init.d/orbit-agent
+	rc-update add orbit-agent default >/dev/null
+	rc-service orbit-agent restart >/dev/null
 	ok "Service running"
-	LOGS="tail -f /var/log/linux-dash-agent.log"
+	LOGS="tail -f /var/log/orbit-agent.log"
 else
 	warn "No systemd or OpenRC found. Start the agent yourself: $BIN_PATH run -config $CONF_FILE"
 	LOGS="(run the agent in the foreground to see logs)"

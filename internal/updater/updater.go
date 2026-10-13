@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"linux-dash-agent/internal/execx"
-	"linux-dash-agent/internal/packages"
-	"linux-dash-agent/internal/protocol"
-	"linux-dash-agent/internal/state"
+	"orbit-agent/internal/execx"
+	"orbit-agent/internal/packages"
+	"orbit-agent/internal/protocol"
+	"orbit-agent/internal/state"
 )
 
 // Reporter receives live progress of an update run (see agent.jobStream).
@@ -259,7 +259,7 @@ func (u *Updater) Reboot(ctx context.Context, delayMinutes int) error {
 	if delayMinutes < 1 {
 		delayMinutes = 1
 	}
-	res, err := u.Runner.Run(ctx, execx.Cmd{Name: "shutdown", Args: []string{"-r", "+" + strconv.Itoa(delayMinutes), "linux-dash-agent: scheduled reboot"}})
+	res, err := u.Runner.Run(ctx, execx.Cmd{Name: "shutdown", Args: []string{"-r", "+" + strconv.Itoa(delayMinutes), "orbit-agent: scheduled reboot"}})
 	if err != nil {
 		return err
 	}

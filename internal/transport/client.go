@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/protocol"
 )
 
 // ErrUnauthorized means the control plane rejected the agent's credentials

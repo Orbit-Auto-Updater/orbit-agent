@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/protocol"
 )
 
 // Docker talks to the Engine API over its Unix socket; no SDK required.

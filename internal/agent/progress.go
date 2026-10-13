@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"linux-dash-agent/internal/packages"
-	"linux-dash-agent/internal/protocol"
-	"linux-dash-agent/internal/transport"
-	"linux-dash-agent/internal/updater"
+	"orbit-agent/internal/packages"
+	"orbit-agent/internal/protocol"
+	"orbit-agent/internal/transport"
+	"orbit-agent/internal/updater"
 )
 
 const (

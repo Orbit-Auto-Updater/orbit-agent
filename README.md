@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="docs/logo.svg" width="88" alt="Linux Dash logo">
+<img src="docs/logo.svg" width="88" alt="Orbit logo">
 
-# Linux Dash agent
+# Orbit agent
 
-**A small, static Go binary that connects each Linux server to the [Linux Dash](../linux-dash) dashboard.**
+**A small, static Go binary that connects each Linux server to the [Orbit](https://github.com/Orbit-Auto-Updater/orbit-dashboard) dashboard.**
 
 Metrics, apps, errors and package updates, reported over outbound HTTPS. No open ports and no shell access.
 
@@ -43,7 +43,7 @@ It's a single static binary (about 7 MB) for amd64, arm64, arm and 386. The only
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as linux-dash-agent
+    participant A as orbit-agent
     participant D as Dashboard
 
     A->>D: POST /api/agent/v1/enroll (one-time token)
@@ -67,14 +67,14 @@ The agent always dials out, so servers need no open inbound ports. The full spec
 | **Outbound** | HTTPS to the dashboard's URL (normally 443), plus your distribution's package mirrors for updates. |
 | **Proxy** | Set `HTTPS_PROXY` in the service's environment if the server reaches the internet through one. |
 
-See the dashboard README's [Network & firewall](../linux-dash/README.md#-network--firewall) section for the dashboard side.
+See the dashboard README's [Network & firewall](https://github.com/Orbit-Auto-Updater/orbit-dashboard#-network--firewall) section for the dashboard side.
 
 ## 🛡️ Security model
 
 - 🚧 **Allowlisted actions only.** There is no "run this shell command" capability. Names passed to `apt`, `docker`, `pm2` and `systemctl` are validated, so values like `--force` or `a;b` are rejected.
 - ✋ **Local veto.** The `actions:` block in the agent's config decides what the dashboard may do on that host. Reboots are off by default. systemd control is limited to watched units unless `control_any: true`.
 - 🔒 **HTTPS required.** Plain HTTP needs an explicit `allow_insecure_http` flag (for local development). A custom CA is supported.
-- 🔑 **Protected credentials.** Credentials are stored in `/var/lib/linux-dash-agent/state.json` with mode `0600`.
+- 🔑 **Protected credentials.** Credentials are stored in `/var/lib/orbit-agent/state.json` with mode `0600`.
 - 👤 **Runs as root.** Package management requires it. PM2 commands are run as the owning user via `runuser`.
 
 ## 🚀 Install
@@ -95,7 +95,7 @@ It asks for:
 4. **What to monitor:** systemd services (suggests the enabled ones it detects, such as nginx, postgresql or redis) and PM2 users (detects `~/.pm2` and finds nvm-installed `pm2`). Docker is picked up automatically.
 5. **Automatic updates:** off, security only, or all, plus days, start time and timezone (defaults to the server's), and whether to reboot afterwards.
 
-It then shows a summary to confirm, writes `/etc/linux-dash-agent/config.yaml` (mode `0600`), and checks that config with the agent before using it. Finally it installs the systemd unit (or an OpenRC service on Alpine) and confirms the service stays up. Re-running it on an installed server offers to keep the existing config and only upgrade the binary.
+It then shows a summary to confirm, writes `/etc/orbit-agent/config.yaml` (mode `0600`), and checks that config with the agent before using it. Finally it installs the systemd unit (or an OpenRC service on Alpine) and confirms the service stays up. Re-running it on an installed server offers to keep the existing config and only upgrade the binary.
 
 <details>
 <summary><b>Scripted installs</b></summary>
@@ -114,13 +114,13 @@ sh install.sh --help         # all options
 </details>
 
 > [!TIP]
-> Logs: `journalctl -u linux-dash-agent -f`. See [deploy/config.example.yaml](deploy/config.example.yaml) for every option. After editing the config, run `linux-dash-agent validate` before restarting.
+> Logs: `journalctl -u orbit-agent -f`. See [deploy/config.example.yaml](deploy/config.example.yaml) for every option. After editing the config, run `orbit-agent validate` before restarting.
 
 ### Check what the agent sees
 
 ```bash
-sudo linux-dash-agent check              # one collection, printed as JSON; nothing is sent
-sudo linux-dash-agent check -updates     # also refresh package lists
+sudo orbit-agent check              # one collection, printed as JSON; nothing is sent
+sudo orbit-agent check -updates     # also refresh package lists
 ```
 
 ## 🔄 Updating the agent
@@ -135,7 +135,7 @@ For each server, the agent:
 
 1. **Downloads** the binary for its architecture from the dashboard and checks its **SHA-256** against the release.
 2. **Test-runs** it: `version` must report the expected version and `validate -config` must accept the current config.
-3. **Swaps it in** with an atomic rename, keeping the old binary as `linux-dash-agent.previous`.
+3. **Swaps it in** with an atomic rename, keeping the old binary as `orbit-agent.previous`.
 4. **Restarts** through systemd or OpenRC.
 5. **Confirms** on its first successful report from the new version. If the new version fails to start or report, the previous binary is restored automatically.
 
@@ -166,7 +166,7 @@ intervals: { report: 2s }
 ```
 
 ```bash
-go run ./cmd/linux-dash-agent run -config dev.yaml
+go run ./cmd/orbit-agent run -config dev.yaml
 curl localhost:8080/dev/agents                                   # list agents
 curl -X POST localhost:8080/dev/agents/<id>/commands \
      -d '{"type":"docker.restart","args":{"id":"nginx"}}'         # queue a command
@@ -182,7 +182,7 @@ curl -X PUT localhost:8080/dev/agents/<id>/policy \
 <br>
 
 ```
-cmd/linux-dash-agent   entrypoint: run | check | validate | version
+cmd/orbit-agent   entrypoint: run | check | validate | version
 cmd/devserver          reference control plane (in-memory)
 internal/protocol      wire types shared with the control plane
 internal/agent         report loop, enrolment, command dispatch, progress, self-update

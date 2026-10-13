@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"linux-dash-agent/internal/protocol"
-	"linux-dash-agent/internal/state"
+	"orbit-agent/internal/protocol"
+	"orbit-agent/internal/state"
 )
 
 // ErrRestart is returned by Run after the agent replaced its own binary; the
@@ -82,7 +82,7 @@ func (a *Agent) selfUpdate(ctx context.Context, cmd protocol.Command, args proto
 	if !versionRe.MatchString(args.Version) || !sha256Re.MatchString(args.SHA256) {
 		return "", errors.New("invalid version or checksum in update request")
 	}
-	if want := "/downloads/linux-dash-agent-linux-" + runtime.GOARCH; args.Path != want {
+	if want := "/downloads/orbit-agent-linux-" + runtime.GOARCH; args.Path != want {
 		return "", fmt.Errorf("refusing download path %q (this agent needs %s)", args.Path, want)
 	}
 	if args.Version == a.version {
@@ -109,7 +109,7 @@ func (a *Agent) selfUpdate(ctx context.Context, cmd protocol.Command, args proto
 	rep.Phase("downloading")
 	say("Updating agent %s → %s (%s)", a.version, args.Version, exe)
 	say("Downloading %s", args.Path)
-	tmp, err := os.CreateTemp(filepath.Dir(exe), ".linux-dash-agent-new-*")
+	tmp, err := os.CreateTemp(filepath.Dir(exe), ".orbit-agent-new-*")
 	if err != nil {
 		return fail(fmt.Errorf("creating temporary file next to %s: %w", exe, err))
 	}

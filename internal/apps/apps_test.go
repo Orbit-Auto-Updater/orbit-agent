@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"linux-dash-agent/internal/execx"
+	"orbit-agent/internal/execx"
 )
 
 func TestParsePM2JList(t *testing.T) {

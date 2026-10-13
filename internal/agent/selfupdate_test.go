@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"linux-dash-agent/internal/config"
-	"linux-dash-agent/internal/protocol"
-	"linux-dash-agent/internal/state"
+	"orbit-agent/internal/config"
+	"orbit-agent/internal/protocol"
+	"orbit-agent/internal/state"
 )
 
 // newBinary is a stand-in "agent release": answers `version` and `validate`.
@@ -35,7 +35,7 @@ func selfUpdateAgent(t *testing.T, plane *fakePlane, extra http.Handler) (*Agent
 	t.Cleanup(srv.Close)
 
 	dir := t.TempDir()
-	exe := filepath.Join(dir, "linux-dash-agent")
+	exe := filepath.Join(dir, "orbit-agent")
 	if err := os.WriteFile(exe, []byte("#!/bin/sh\necho 1.0.0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -52,13 +52,13 @@ func selfUpdateAgent(t *testing.T, plane *fakePlane, extra http.Handler) (*Agent
 		t.Fatal(err)
 	}
 	a.executable = func() (string, error) { return exe, nil }
-	a.ConfigPath = "/etc/linux-dash-agent/config.yaml"
+	a.ConfigPath = "/etc/orbit-agent/config.yaml"
 	return a, exe, srv
 }
 
 func serveBinary(body string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/downloads/linux-dash-agent-linux-"+runtime.GOARCH {
+		if r.URL.Path != "/downloads/orbit-agent-linux-"+runtime.GOARCH {
 			http.NotFound(w, r)
 			return
 		}
@@ -72,7 +72,7 @@ func sum(s string) string {
 }
 
 func updateCmd(id, checksum string) protocol.Command {
-	args, _ := json.Marshal(protocol.AgentUpdateArgs{Version: "9.9.9", Path: "/downloads/linux-dash-agent-linux-" + runtime.GOARCH, SHA256: checksum})
+	args, _ := json.Marshal(protocol.AgentUpdateArgs{Version: "9.9.9", Path: "/downloads/orbit-agent-linux-" + runtime.GOARCH, SHA256: checksum})
 	return protocol.Command{ID: id, Type: protocol.CmdAgentUpdate, Args: args}
 }
 

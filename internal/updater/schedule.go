@@ -3,8 +3,8 @@ package updater
 import (
 	"time"
 
-	"linux-dash-agent/internal/config"
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/config"
+	"orbit-agent/internal/protocol"
 )
 
 const defaultWindowMinutes = 120

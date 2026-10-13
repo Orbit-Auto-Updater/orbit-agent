@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"linux-dash-agent/internal/execx"
-	"linux-dash-agent/internal/packages"
-	"linux-dash-agent/internal/protocol"
-	"linux-dash-agent/internal/state"
+	"orbit-agent/internal/execx"
+	"orbit-agent/internal/packages"
+	"orbit-agent/internal/protocol"
+	"orbit-agent/internal/state"
 )
 
 func ts(s string) time.Time {

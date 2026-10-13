@@ -1,11 +1,11 @@
 # Agent ↔ control plane protocol (v1)
 
-The dashboard ("control plane") implements two HTTPS endpoints. The agent always initiates connections, so servers need no inbound ports. `cmd/devserver` is a minimal reference implementation of the server side; the Linux Dash dashboard (`../linux-dash`, `app/api/agent/v1/*`) is the full one. The Go types live in [`internal/protocol`](../internal/protocol/protocol.go).
+The dashboard ("control plane") implements two HTTPS endpoints. The agent always initiates connections, so servers need no inbound ports. `cmd/devserver` is a minimal reference implementation of the server side; the Orbit dashboard ([orbit-dashboard](https://github.com/Orbit-Auto-Updater/orbit-dashboard), `app/api/agent/v1/*`) is the full one. The Go types live in [`internal/protocol`](../internal/protocol/protocol.go).
 
 ## Transport
 
 - `POST` with a JSON body, gzip-compressed (`Content-Encoding: gzip`).
-- Headers on every request: `User-Agent: linux-dash-agent/<version>` and `X-Agent-Protocol: 1`.
+- Headers on every request: `User-Agent: orbit-agent/<version>` and `X-Agent-Protocol: 1`.
 - Authenticated requests also send `X-Agent-ID: <agent_id>` and `Authorization: Bearer <secret>`.
 - Return `401` or `403` for unknown or revoked agents. The agent logs an error and retries every 5 minutes.
 - Any other non-2xx response, or a network error, makes the agent back off (exponential with jitter, capped at 5 min). It keeps queued logs and command results and resends them on the next successful report.
@@ -84,7 +84,7 @@ Unknown types, unknown argument fields, and actions disabled in the agent's `act
 | Type                                    | Args                                         | Local switch      |
 | --------------------------------------- | -------------------------------------------- | ----------------- |
 | `agent.refresh`                         | none                                         | none              |
-| `agent.update`                          | `{ "version": "0.3.0", "path": "/downloads/linux-dash-agent-linux-amd64", "sha256": "…" }` | `actions.agent_update` (needs systemd/OpenRC) |
+| `agent.update`                          | `{ "version": "0.3.0", "path": "/downloads/orbit-agent-linux-amd64", "sha256": "…" }` | `actions.agent_update` (needs systemd/OpenRC) |
 | `updates.check`                         | none                                         | `updates.enabled` |
 | `updates.apply`                         | `{ "packages"?: [..], "security_only"?: bool }` | `actions.updates` |
 | `host.reboot`                           | `{ "delay_minutes"?: int }` (min 1)          | `actions.reboot` (off by default) |
@@ -131,4 +131,4 @@ Each agent runs its own policy window, so updates still happen if the dashboard 
 | Applications                 | `apps.docker`, `apps.pm2`, `apps.systemd`, and the `docker.*` / `pm2.*` / `systemd.*` commands |
 | Updates                      | `updates`, `updates.last_run`, `policy`, `updates.apply`        |
 | Alerts & logs                | `logs`, plus threshold rules evaluated on the server            |
-| Agents page                  | issues enrolment tokens; serves `install.sh` and `/downloads/linux-dash-agent-linux-<arch>` |
+| Agents page                  | issues enrolment tokens; serves `install.sh` and `/downloads/orbit-agent-linux-<arch>` |

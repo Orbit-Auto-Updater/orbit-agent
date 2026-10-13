@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"linux-dash-agent/internal/protocol"
+	"orbit-agent/internal/protocol"
 )
 
 type State struct {
